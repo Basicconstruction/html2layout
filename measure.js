@@ -25,9 +25,12 @@ const path = require('path');
     // 加载本地HTML文件，路径要用file://协议
     const filePath = path.resolve(inputHtmlPath);
     await page.goto('file://' + filePath, { waitUntil: 'load' });
-
     // 执行页面内JS，计算目标元素宽高
     const data = await page.evaluate(() => {
+        // 获取第一页的画面宽高
+        let page1 = document.getElementById("pf1");
+        let w = page1.offsetWidth;
+        let h = page1.offsetHeight;
         let rid = 1;
 
         // 找到所有class包含'pc'的div元素
@@ -45,18 +48,27 @@ const path = require('path');
         })
 
         // 这里根据你的页面结构修改选择器
-        var elements = document.querySelectorAll('[rid]');
-        return Array.from(elements).map(el => ({
+        const elements = document.querySelectorAll('[rid]');
+        let res =  Array.from(elements).map(el => ({
             id: el.getAttribute('rid'),
             width: Math.ceil(el.offsetWidth),
             height: Math.ceil(el.offsetHeight),
             left: el.offsetLeft,
             top: el.offsetTop,
         }));
+        // 第一页的画面宽高，忽略偏移
+        res.splice(0,0,{
+            id: 0,
+            width: w,
+            height: h,
+            left: 0,
+            top: 0,
+        })
+        return res;
     });
 
     // 转换为CSV格式
-    const csv = 'ID,Width,Height,Left,Top\n' + data.map(d => `${d.id},${d.width},${d.height},${d.left},${d.top}`).join('\n');
+    const csv = 'ID,Width,Height,Left,Top\n'+data.map(d => `${d.id},${d.width},${d.height},${d.left},${d.top}`).join('\n');
 
     // 写入CSV文件
     fs.writeFileSync(outputCsvPath, csv);
