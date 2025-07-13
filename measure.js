@@ -1,7 +1,8 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-
+//html 1 "C:\Users\betha\Desktop\html\4_PDFsam_issue65_en.html"
+// html 2 "C:\Users\betha\Documents\ptmsln\samsung\origin\html\origin.html"
 (async () => {
     const args = process.argv.slice(2);
     if (args.length < 2) {
@@ -20,44 +21,61 @@ const path = require('path');
     const page = await browser.newPage();
 
     // 设置虚拟窗口大小（视口）
-    await page.setViewport({ width: 1980, height: 768 });
-
+    await page.setViewport({ width: 1980, height: 1980 });
+    // await page.setViewport({width: 1980, height: (h+13)* pages.length+100});
     // 加载本地HTML文件，路径要用file://协议
     const filePath = path.resolve(inputHtmlPath);
     await page.goto('file://' + filePath, { waitUntil: 'load' });
-    // 执行页面内JS，计算目标元素宽高
-    const data = await page.evaluate(() => {
+    const data0 = await page.evaluate(async () => {
         // 获取第一页的画面宽高
-        let page1 = document.getElementById("pf1");
-        let w = page1.offsetWidth;
-        let h = page1.offsetHeight;
+        const firstPage = document.querySelector('div[id^="pf"]');
+        let bound = firstPage.getBoundingClientRect();
+        let h = bound.height;
+        return {h: h, size: Array.from(document.querySelectorAll('div[id^="pf"]')).length};
+    });
+    console.log(data0);
+    await page.setViewport({width: 1980, height: (data0.h+13)* data0.size+100});
+    const filePath2 = path.resolve(inputHtmlPath);
+    await page.goto('file://' + filePath2, { waitUntil: 'load' });
+
+
+    const data = await page.evaluate(async () => {
+        // 获取第一页的画面宽高
+        const firstPage = document.querySelector('div[id^="pf"]');
+        let bound = firstPage.getBoundingClientRect();
+        let w = bound.width;
+        let h = bound.height;
+        // let w = firstPage.offsetWidth;
+        // let h = firstPage.offsetHeight;
+        const pages =  Array.from(document.querySelectorAll('div[id^="pf"]'));
+
         let rid = 1;
+        let res = []
 
-        // 找到所有class包含'pc'的div元素
-        const pcDivs = document.querySelectorAll('div[class*="pc"]');
+        pages.forEach((pageDiv, pageIndex) => {
+            // 找该页内所有class包含'pc'的div
+            const pcDivs = pageDiv.querySelectorAll('div[class*="pc"]');
 
-        pcDivs.forEach(pcDiv => {
-            // 找到该div的所有直接子div元素
-            const childDivs = Array.from(pcDiv.children).filter(el => el.tagName.toLowerCase() === 'div');
+            pcDivs.forEach(pcDiv => {
+                const childDivs = Array.from(pcDiv.children).filter(el => el.tagName.toLowerCase() === 'div');
 
-            childDivs.forEach(childDiv => {
-                // 添加rid属性
-                childDiv.setAttribute('rid', rid.toString());
-                rid++;
+                childDivs.forEach(childDiv => {
+                    const rect = childDiv.getBoundingClientRect();
+                    const pageRect = pageDiv.getBoundingClientRect();
+
+                    res.push({
+                        id: rid++,
+                        page: pageIndex + 1,
+                        width: rect.width,
+                        height: rect.height,
+                        left: rect.left - pageRect.left,
+                        top: rect.top - pageRect.top,
+                    });
+                });
             });
-        })
-
-        // 这里根据你的页面结构修改选择器
-        const elements = document.querySelectorAll('[rid]');
-        let res =  Array.from(elements).map(el => ({
-            id: el.getAttribute('rid'),
-            width: Math.ceil(el.offsetWidth),
-            height: Math.ceil(el.offsetHeight),
-            left: el.offsetLeft,
-            top: el.offsetTop,
-        }));
+        });
         // 第一页的画面宽高，忽略偏移
-        res.splice(0,0,{
+        res.splice(0, 0, {
             id: 0,
             width: w,
             height: h,

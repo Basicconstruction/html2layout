@@ -11,6 +11,7 @@
 *.zip
 *.tar
 *.7z
+*.csv
 UserInterfaceState.xcuserstate
 $RECYCLE.BIN/
 
