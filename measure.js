@@ -29,7 +29,7 @@ const path = require('path');
         // 获取第一页的画面宽高
         const firstPage = document.querySelector('div[id^="pf"]');
         let bound = firstPage.getBoundingClientRect();
-        let h = bound.height;
+        let h = Math.ceil(bound.height)
         return {h: h, size: Array.from(document.querySelectorAll('div[id^="pf"]')).length};
     });
     console.log(data0);
@@ -39,17 +39,8 @@ const path = require('path');
 
 
     const data = await page.evaluate(async () => {
-        // 获取第一页的画面宽高
-        // const firstPage = document.querySelector('div[id^="pf"]');
-        // let bound = firstPage.getBoundingClientRect();
-        // let w = bound.width;
-        // let h = bound.height;
-
         const pages =  Array.from(document.querySelectorAll('div[id^="pf"]'));
-
-
         let res = []
-        // let pageId = 1;
         pages.forEach((pageDiv, pageIndex) => {
             // 找该页内所有class包含'pc'的div
             const pcDivs = pageDiv.querySelectorAll('div[class*="pc"]');// pcDivs length <= 1
@@ -83,13 +74,8 @@ const path = require('path');
         });
         return res;
     });
-
-
     const fsContent = JSON.stringify(data, null, 2);
-
     fs.writeFileSync(outputFilePath, fsContent);
-
     console.log(`文件已生成：${outputFilePath}`);
-
     await browser.close();
 })();
