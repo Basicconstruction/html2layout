@@ -12,6 +12,7 @@
 *.tar
 *.7z
 *.csv
+output2.json
 UserInterfaceState.xcuserstate
 $RECYCLE.BIN/
 

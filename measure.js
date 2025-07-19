@@ -10,7 +10,7 @@ const path = require('path');
         process.exit(1);
     }
     const inputHtmlPath = args[0];
-    const outputCsvPath = args[1];
+    const outputFilePath = args[1];
     // 启动无头浏览器
     //windows
     const browser = await puppeteer.launch({ headless: true,executablePath: 'C:\\Users\\betha\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe' });
@@ -22,7 +22,6 @@ const path = require('path');
 
     // 设置虚拟窗口大小（视口）
     await page.setViewport({ width: 1980, height: 1980 });
-    // await page.setViewport({width: 1980, height: (h+13)* pages.length+100});
     // 加载本地HTML文件，路径要用file://协议
     const filePath = path.resolve(inputHtmlPath);
     await page.goto('file://' + filePath, { waitUntil: 'load' });
@@ -41,21 +40,24 @@ const path = require('path');
 
     const data = await page.evaluate(async () => {
         // 获取第一页的画面宽高
-        const firstPage = document.querySelector('div[id^="pf"]');
-        let bound = firstPage.getBoundingClientRect();
-        let w = bound.width;
-        let h = bound.height;
-        // let w = firstPage.offsetWidth;
-        // let h = firstPage.offsetHeight;
+        // const firstPage = document.querySelector('div[id^="pf"]');
+        // let bound = firstPage.getBoundingClientRect();
+        // let w = bound.width;
+        // let h = bound.height;
+
         const pages =  Array.from(document.querySelectorAll('div[id^="pf"]'));
 
-        let rid = 1;
-        let res = []
 
+        let res = []
+        // let pageId = 1;
         pages.forEach((pageDiv, pageIndex) => {
             // 找该页内所有class包含'pc'的div
-            const pcDivs = pageDiv.querySelectorAll('div[class*="pc"]');
-
+            const pcDivs = pageDiv.querySelectorAll('div[class*="pc"]');// pcDivs length <= 1
+            let bound = pageDiv.getBoundingClientRect();
+            let pageWidth = bound.width;
+            let pageHeight = bound.height;
+            let pageChildren = [];
+            let rid = 1;
             pcDivs.forEach(pcDiv => {
                 const childDivs = Array.from(pcDiv.children).filter(el => el.tagName.toLowerCase() === 'div');
 
@@ -63,9 +65,8 @@ const path = require('path');
                     const rect = childDiv.getBoundingClientRect();
                     const pageRect = pageDiv.getBoundingClientRect();
 
-                    res.push({
+                    pageChildren.push({
                         id: rid++,
-                        page: pageIndex + 1,
                         width: rect.width,
                         height: rect.height,
                         left: rect.left - pageRect.left,
@@ -73,25 +74,22 @@ const path = require('path');
                     });
                 });
             });
+            res.push({
+                pageId:  pageIndex + 1,
+                width: pageWidth,
+                height: pageHeight,
+                children: pageChildren,
+            })
         });
-        // 第一页的画面宽高，忽略偏移
-        res.splice(0, 0, {
-            id: 0,
-            width: w,
-            height: h,
-            left: 0,
-            top: 0,
-        })
         return res;
     });
 
-    // 转换为CSV格式
-    const csv = 'ID,Width,Height,Left,Top\n'+data.map(d => `${d.id},${d.width},${d.height},${d.left},${d.top}`).join('\n');
 
-    // 写入CSV文件
-    fs.writeFileSync(outputCsvPath, csv);
+    const fsContent = JSON.stringify(data, null, 2);
 
-    console.log(`CSV已生成：${outputCsvPath}`);
+    fs.writeFileSync(outputFilePath, fsContent);
+
+    console.log(`文件已生成：${outputFilePath}`);
 
     await browser.close();
 })();
